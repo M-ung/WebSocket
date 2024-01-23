@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebSocket Chat</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+</head>
+<body>
+<h1>WebSocket Chat</h1>
+<div>
+  <div>
+    <h2>Welcome, <span id="username"></span>!</h2> <!-- 사용자 이름 표시 -->
+    <textarea id="messages" rows="10" cols="50" readonly></textarea>
+  </div>
+  <div>
+    <input type="text" id="message" placeholder="Enter your message..." />
+    <button onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<script>
+  var socket = new SockJS('/ws');
+  var stompClient = Stomp.over(socket);
+
+  var username = prompt("Enter your username:");
+  document.getElementById("username").textContent = username; // 사용자 이름 표시
+
+  // URL에서 채팅방 ID 추출
+  var chatRoomId = window.location.pathname.split('/').pop();
+
+  stompClient.connect({}, function (frame) {
+    // 메시지 구독 경로 수정
+    stompClient.subscribe('/topic/messages/' + chatRoomId, function (message) {
+      var messageData = JSON.parse(message.body);
+      displayMessage(messageData.sender, messageData.content, messageData.timestamp);
+    });
+  });
+
+  function sendMessage() {
+    var messageContent = document.getElementById("message").value;
+    var message = {
+      sender: username,
+      content: messageContent,
+      timestamp: new Date().toISOString() // 현재 시각 설정
+    };
+    // 메시지 전송 경로 수정
+    stompClient.send("/app/chat/" + chatRoomId, {}, JSON.stringify(message));
+    document.getElementById("message").value = '';
+  }
+
+  function displayMessage(sender, content, timestamp) {
+    var messagesDiv = document.getElementById("messages");
+    messagesDiv.value += sender + " (" + timestamp + "): " + content + '\n';
+  }
+</script>
+
+</body>
+</html>
